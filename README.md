@@ -19,20 +19,13 @@ This repository contains the core analytics logic for the KABAS (Kanban Board As
 
 ## 📂 Repository Structure
 
-### ⚡ JavaScript Implementation (Production)
+### ⚡ Source Code
 
 | File | Description |
 |------|-------------|
 | `src/EfficiencyCalculator.js` | Calculates team velocity score using the modern formula |
 | `src/StatisticsCalculator.js` | Statistical analysis: Mean, Median, StdDev, Percentiles, Task Distribution |
 | `src/MockDataLoader.js` | Generates fake team data for testing |
-
-### 🐍 Python Implementation (Legacy)
-
-| File | Description |
-|------|-------------|
-| `src/efficiency_calculator.py` | Python version of efficiency calculator |
-| `src/mock_data_loader.py` | Python version of mock data loader |
 
 ### 📚 Documentation
 
