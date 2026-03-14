@@ -1,136 +1,130 @@
 # KABAS Analytics
 
-> **Author**: Willy (ILikeLenny)  
-> **Role**: Logic Analyst & Systems Architect  
-> **Module**: Module 2 (Analytics & Data Aggregation)
+> **Author**: Willy Ang Zi Wei  
+> **Module**: ICT2505C — Agile Development and UX Project (T2 AY2025/26)  
+> **Role**: Logic Analyst & Module 2 (Analytics & Data Aggregation)
 
 ---
 
-## 🤔 What Is This?
+## What is this?
 
-This is the **brain** of the KABAS system. It takes raw task data and calculates meaningful numbers for the dashboard.
+This repo contains the backend calculation logic for the KABAS project. My job is to take raw task data and calculate meaningful statistics like efficiency score, mean, and standard deviation. The results will then be passed to the dashboard team to display.
 
-**I provide the LOGIC (formulas). The API teammate provides the DATA.**
+I do not touch the API or the frontend. My part is purely the calculation logic.
 
 ---
 
-## 👥 How We Work Together
+## How the system works
+
+Our team split the work into 3 parts:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 1: API Teammate                                        │
-│  ────────────────────                                        │
-│  • Pulls task data from Jira/GitHub                         │
-│  • Example: [{id: 1, hours: 5, status: 'COMPLETED'}, ...]   │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ passes data to
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 2: MY CODE (This Repo)                                 │
-│  ───────────────────────────                                 │
-│  • EfficiencyCalculator.js → Calculates velocity score      │
-│  • StatisticsCalculator.js → Calculates mean, stddev, etc   │
-│  • Returns: { mean: 5.8, stdDev: 2.0, velocity: 0.22 }      │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ sends numbers to
-                      ▼
-┌─────────────────────────────────────────────────────────────┐
-│  STEP 3: Li Wei's Dashboard                                  │
-│  ──────────────────────────                                  │
-│  • Displays the numbers as charts and graphs                │
-│  • Shows: "Team Alpha: 85% efficient"                       │
-└─────────────────────────────────────────────────────────────┘
+Step 1 — API Teammate
+  → Pulls task data from Jira / GitHub
+  → Example output: [{id: 1, hours: 5, status: 'COMPLETED'}, ...]
+
+Step 2 — My Code (this repo)
+  → Takes that data and runs the formulas
+  → Returns: { mean: 5.8, stdDev: 2.0, velocity: 0.22, efficiency: 3.0 }
+
+Step 3 — Li Wei's Dashboard
+  → Displays the numbers as charts and graphs
 ```
 
 ---
 
-## 📁 What's In This Repo
+## Files in this repo
 
-| File | What It Does | My Job? |
-|------|--------------|---------|
-| `src/EfficiencyCalculator.js` | Calculates team efficiency score | ✅ Done |
-| `src/StatisticsCalculator.js` | Calculates Mean, StdDev, Percentiles | ✅ Done |
-| `src/MockDataLoader.js` | Fake data for testing | ✅ Done |
+| File | What it does |
+|------|-------------|
+| `src/EfficiencyCalculator.js` | Calculates team velocity score (tasks per hour) |
+| `src/StatisticsCalculator.js` | Calculates mean, median, standard deviation, percentiles |
+| `src/efficiency_formula.js` | KB-34/KB-35: Efficiency score formula with zero-value guards |
+| `src/MockDataLoader.js` | Fake data for testing when API is not ready |
+| `tests/test_efficiency_formula.js` | Unit tests for the efficiency formula (15 tests) |
 
 ---
 
-## 🚀 How To Use (Demo Mode)
-
-Run these to see the demo output:
+## How to run
 
 ```bash
-# Test the Efficiency Calculator
+# Test the efficiency formula (15 unit tests)
+node tests/test_efficiency_formula.js
+
+# Run demo for EfficiencyCalculator
 node src/EfficiencyCalculator.js
 
-# Test the Statistics Calculator
+# Run demo for StatisticsCalculator
 node src/StatisticsCalculator.js
 ```
 
-**This uses FAKE data to prove the logic works.**
+No need to install anything. Uses plain Node.js only.
 
 ---
 
-## 🔌 How To Use (Integration Mode)
+## What the efficiency formula does (KB-34)
 
-When API teammate is ready, they call my code like this:
+```
+Efficiency = (Complexity / Time Spent) × Lead Time Weight
+```
+
+The lead time weight is based on how fast the PR was merged:
+
+| Lead Time | Weight | Meaning |
+|-----------|--------|---------|
+| < 24 hours | 1.2x | Fast — bonus |
+| 24 to 48 hours | 1.0x | Normal |
+| > 48 hours | 0.8x | Slow — penalty |
+
+---
+
+## Zero-value guards (KB-35)
+
+Added safety checks so the system does not crash or return NaN when data is missing:
+
+- If `Time Spent` is 0 or missing → return `0`
+- If `Complexity` is null or undefined → default to `1`
+- All guard triggers log a `[KABAS WARN]` in the console for debugging
+
+---
+
+## How the API teammate should use my code
 
 ```javascript
-// 1. API teammate fetches real data
-const tasks = await fetchFromJira();  // Their code
+const EfficiencyCalculator = require('./src/EfficiencyCalculator');
+const StatisticsCalculator = require('./src/StatisticsCalculator');
+const { calculateEfficiency } = require('./src/efficiency_formula');
 
-// 2. Use MY EfficiencyCalculator
-const EfficiencyCalculator = require('./EfficiencyCalculator');
+// 1. Load task data from your API
+const tasks = await fetchFromJira(); // your code
+
+// 2. Calculate velocity
 const calc = new EfficiencyCalculator("Team Alpha");
 tasks.forEach(t => calc.addTask(t.id, t.hours, t.status));
-const velocityScore = calc.calculateVelocityScore();
-// Returns: 0.22 (tasks per hour)
+const velocity = calc.calculateVelocityScore(); // e.g. 0.22
 
-// 3. Use MY StatisticsCalculator
-const StatisticsCalculator = require('./StatisticsCalculator');
+// 3. Calculate statistics
 const stats = new StatisticsCalculator();
 stats.loadData(tasks.map(t => t.hours));
-const summary = stats.getSummary();
-// Returns: { mean: 5.8, stdDev: 2.0, median: 6, ... }
+const summary = stats.getSummary(); // { mean, stdDev, median, ... }
 
-// 4. Send to Li Wei's dashboard
-dashboard.display(velocityScore, summary);
+// 4. Calculate efficiency for a single task
+const score = calculateEfficiency(5, 2, 12); // 3.0
+
+// 5. Pass everything to Li Wei's dashboard
+dashboard.display(velocity, summary, score);
 ```
 
 ---
 
-## 📊 What My Code Calculates
+## Jira tickets completed
 
-### EfficiencyCalculator
-
-| Method | Returns | Example |
-|--------|---------|---------|
-| `calculateVelocityScore()` | Tasks per hour | `0.22` |
-| `getTotalHours()` | Sum of all hours | `50` |
-| `getCompletedTaskCount()` | Number completed | `10` |
-
-### StatisticsCalculator
-
-| Method | Returns | Example |
-|--------|---------|---------|
-| `calculateMean()` | Average | `5.83` |
-| `calculateMedian()` | Middle value | `6` |
-| `calculateStandardDeviation()` | Spread | `2.03` |
-| `calculatePercentile(75)` | 75th percentile | `7.25` |
-| `analyzeTaskDistribution(tasks)` | % by status | `{COMPLETED: 62%, IN_PROGRESS: 25%}` |
+| Ticket | Description | Status |
+|--------|-------------|--------|
+| KB-33 | Normalise GitHub & Jira Timestamps | Done |
+| KB-34 | Implement Efficiency Algorithm | Done |
+| KB-35 | Implement Zero-Value Guards | Done |
 
 ---
 
-## ✅ Summary
-
-| Question | Answer |
-|----------|--------|
-| What do I provide? | The **formulas** (calculation logic) |
-| What does API teammate provide? | The **data** (from Jira/GitHub) |
-| What does Li Wei do? | **Displays** the results |
-| Is my work done? | ✅ Yes! Logic is ready |
-
----
-
-## 📝 License
-
-For educational purposes (ICT2505C Project).
+*For educational purposes — ICT2505C Project*
